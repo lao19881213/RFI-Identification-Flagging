@@ -1,34 +1,47 @@
 #!/usr/bin/env python
 import numpy as np
 import matplotlib.pyplot as plt
+import mpi4py.MPI as MPI
+import time
 #import matplotlib.image as mpimg
 from astropy.convolution import Gaussian2DKernel, convolve_fft
 from PIL import Image
 from pylab import *
 from astropy.modeling import models, fitting
 from astropy.modeling.models import custom_model
+from RFI_flag import *
 
-data_file = '../samplerfi.dat'
+print time.localtime()
+
+comm = MPI.COMM_WORLD
+comm_rank = comm.Get_rank()
+comm_size = comm.Get_size()
+
+    
+origin = np.loadtxt('samplerfi.dat')
 # 2D Gaussian Filtering
 #RFI = array(Image.open('rfidataSnapshot.png').convert('L'))  #this line read the image data
-origin = np.loadtxt(data_file)
 f = Gaussian2DKernel(stddev=0.5)
 filtered = convolve_fft(origin, f) #boundary='extend')
-
-#output filtered data
-output1 = open('2DGaussianFiltering.txt','w')
-for i in filtered:
-    k = ' '.join([str(j) for j in i])
-    output1.write(k + "\n")
-output1.close()
-
-#prepare for filtered data and output
 row = filtered.shape[0]
 column = filtered.shape[1]
 RFI = ['Row', 'Colunm','Power' ]
-output2 = open('2DGaussianFiltering_RFI_Flag.txt','w')
-output2.write(str(RFI[0])+'  '+str(RFI[1])+'  '+str(RFI[2])+'\n')
-flagged = convolve_fft(origin, f)
+np.savetxt('2DGaussianFiltering.dat',filtered)
+
+#divide the data to each processor
+local_data_offset = np.linspace(0, column, comm_size + 1).astype('int')
+   
+#get the local data which will be processed in this processor
+local_data = filtered[local_data_offset[comm_rank] :local_data_offset[comm_rank + 1]]
+
+data1 = zeros([row,column])
+for i in np.arange(row):
+    for j in np.arange(local_data_offset[comm_rank],local_data_offset[comm_rank + 1]):
+        data1[i,j] = filtered[i,j]
+np.savetxt('2DGaussianFiltering_{}.dat'.format(comm_rank),data1)
+
+local_filtered = np.loadtxt('2DGaussianFiltering_{}.dat'.format(comm_rank))
+flagged_gf = convolve_fft(local_filtered, f)
 
 #make histogram
 bins = 10000   #if bins is smaller, than y_limit must be larger
@@ -36,37 +49,9 @@ step = (np.max(filtered)-np.min(filtered))/ bins #seperate into 100 bins
 y_hist = np.zeros(bins)
 x_hist = np.arange(np.min(filtered), np.max(filtered), step)
 
-for i in np.arange(row):
-    for j in np.arange(column):
-        y_num = int((filtered[i,j] - np.min(filtered)) / step)
-        if y_num == bins:
-            y_hist[bins-1] = y_hist[bins-1] + 1
-        else:
-            y_hist[y_num] = y_hist[y_num] + 1
+x = RFI_flag()
+x.gaus_filter(filtered,local_filtered,local_data_offset,comm_rank,row,column,RFI,bins,x_hist,y_hist,step,flagged_gf)
 
-#define fitting function
-def curve_model(x, a = 1, A = 1):
-    func = A * np.exp(- a * x)
-    return func
-CurveModel = custom_model(curve_model)
-
-#fitting the histogram with defined function
-h_init = CurveModel()
-fit_h = fitting.LevMarLSQFitter()
-h = fit_h(h_init, x_hist, y_hist)
-
-#flag the RFI
-y_limit = 0.001
-x_limit = np.sqrt(-(np.log(y_limit/h.A))/h.a)
-for i in np.arange(row):
-    for j in np.arange(column):
-        if filtered[i,j] >= x_limit:
-            RFI.append([i,j,filtered[i,j]])
-            output2.write(str(i) + '  ' + str(j) + '  ' + str(filtered[i,j]) + '\n')
-            flagged[i,j] = filtered[i,j] + 1000  #make RFI more clear
-output2.close()
-print x_limit
-#print RFI
 
 #plot the histogram fitting & data RFI
 def forceAspect(ax,aspect=1):
@@ -79,10 +64,11 @@ bx=plt.gca()
 bx.set_xlim(0,10)
 bx.set_ylim(0,100)
 plt.plot(x_hist, y_hist, 'k.', label = 'filtered')
-plt.plot(x_hist, h(x_hist), label = 'fitting',color = 'red')
+plt.plot(x_hist, RFI_flag.h(x_hist), label = 'fitting',color = 'red')
 plt.xlabel('Power')
 plt.ylabel('Number')
 plt.legend()
+plt.savefig('rfi_%s.png' %str(comm_rank))  
 
 fig2 = plt.figure()
 ax = fig2.add_subplot(131)
@@ -103,10 +89,11 @@ forceAspect(ax,aspect=1)
 
 ax = fig2.add_subplot(133)
 #cmap = mpl.cm.hot
-im=ax.imshow(flagged)#, cmap=cmap)
+im=ax.imshow(flagged_gf)#, cmap=cmap)
 plt.colorbar(im)
 plt.xlabel('RFI flagged')
 #plt.axis('off')
 forceAspect(ax,aspect=1)
-
-plt.show()
+plt.savefig('RFI_%s.png' %str(comm_rank))  
+#plt.show()
+print time.localtime()

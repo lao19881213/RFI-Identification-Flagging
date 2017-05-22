@@ -11,7 +11,7 @@ from scipy.special import gamma
 #note: this method is not very good! It doesn't work very well for the row RFI
 origin=np.loadtxt('samplerfi.dat')
 flagged=np.loadtxt('samplerfi.dat')
-sk=scipy.stats.kurtosis(origin,axis=0,fisher=False,bias=False,nan_policy='propagate') #0 is along freq, 1 is along time
+sk=scipy.stats.kurtosis(origin,axis=0,fisher=False,bias=False) #0 is along freq, 1 is along time ,nan_policy='propagate'
 
 #make histogram
 bins = 100   #if bins is smaller, than y_limit must be larger
@@ -80,7 +80,7 @@ for i in np.arange(len(flag_sk)):
             RFI.append([row, flag_sk[i], origin[row, flag_sk[i]]])
             output.write(str(row) + '  ' + str(flag_sk[i]) + '  ' + str(origin[row, flag_sk[i]]) + '\n')
             flagged[row,flag_sk[i]] = origin[row, flag_sk[i]] + 1000 #also, make RFI more clear.If plus 10, you can see the row RFI very clear, but it is not flagged!
-
+print len(flag_sk)
 #plot
 def forceAspect(ax,aspect=1):
     im = ax.get_images()
@@ -88,7 +88,7 @@ def forceAspect(ax,aspect=1):
     ax.set_aspect(abs((extent[1]-extent[0])/(extent[3]-extent[2]))/aspect)
 
 fig1 = plt.figure()#histogram -- Number Plot, & Pearson 4 fitting
-plt.hist(sk,bins)
+plt.hist(sk,bins)        #sk is  axis  x     
 plt.plot(x_hist, h(x_hist), label = 'fitting',color = 'red')
 
 fig2 = plt.figure()#freq -- SK Plot

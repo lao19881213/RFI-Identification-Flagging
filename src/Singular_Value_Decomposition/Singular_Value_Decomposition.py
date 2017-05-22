@@ -14,6 +14,9 @@ median = np.median(s)
 for i in range(len(s)):
     if s[i] > median:
         s_fix[i] = s[i]
+#print s_fix
+#print median
+#print s
 S = linalg.diagsvd(s_fix, U.shape[1], Vh.shape[0])
 SVD = np.dot(U, np.dot(S, Vh))
 np.savetxt("SVD.dat",SVD)

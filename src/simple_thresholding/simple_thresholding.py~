@@ -12,7 +12,7 @@ data_file = '../samplerfi.dat'
 origin = np.loadtxt(data_file)
 row = origin.shape[0]
 column = origin.shape[1]
-RFI = ['Row', 'Column','Power' ]
+RFI = ['Row', 'Colunm','Power' ]
 output=open('Thresholding_RFI_Flag.txt','w')
 output.write(str(RFI[0])+'  '+str(RFI[1])+'  '+str(RFI[2])+'\n')
 flagged = np.loadtxt(data_file)

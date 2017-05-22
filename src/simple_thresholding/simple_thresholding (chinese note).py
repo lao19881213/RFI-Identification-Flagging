@@ -12,7 +12,7 @@ data_file = '../samplerfi.dat'
 origin = np.loadtxt(data_file)
 row = origin.shape[0]
 column = origin.shape[1]
-RFI = ['Row', 'Column','Power' ]
+RFI = ['Row', 'Colunm','Power' ]
 output=open('Thresholding_RFI_Flag.txt','w')
 output.write(str(RFI[0])+'  '+str(RFI[1])+'  '+str(RFI[2])+'\n')
 flagged = np.loadtxt(data_file)
@@ -29,7 +29,7 @@ for i in np.arange(row):
         if y_num == bins:
             y_hist[bins-1] = y_hist[bins-1] + 1
         else:
-            y_hist[y_num] = y_hist[y_num] + 1
+            y_hist[y_num] = y_hist[y_num] + 1　　　#y坐标是点的个数
 
 #define fitting function
 def curve_model(x, a = 1, A = 1):
@@ -54,7 +54,7 @@ for i in np.arange(row):
         if origin[i,j] >= x_limit:
             RFI.append([i,j,origin[i,j]])
             output.write(str(i) + '  ' + str(j) + '  ' + str(origin[i,j]) + '\n')
-            flagged[i,j] = origin[i,j] + 1000  #make RFI more clear
+            flagged[i,j] = origin[i,j] + 1000  #make RFI more clear  标记的内容加上１０００，不标记的不加
 output.close()
 #print x_limit
 #print RFI
